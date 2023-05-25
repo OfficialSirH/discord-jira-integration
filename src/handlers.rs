@@ -27,5 +27,7 @@ pub async fn jira_issue_update(request: HttpRequest, bytes: Bytes) -> Result<Htt
 
 #[get("")]
 pub async fn testing() -> Result<HttpResponse, actix_web::Error> {
+    println!("no fucking way via post");
+
     Ok(HttpResponse::Ok().body("OK"))
 }

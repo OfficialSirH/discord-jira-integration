@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let server = HttpServer::new(move || {
         App::new().service(
-            web::scope("/")
+            web::scope("/discord-jira")
             .wrap(middleware::LoggingRoute {})
                 // .guard(guard::Header("content-type", "application/json"))
                 // .guard(guard::Post())

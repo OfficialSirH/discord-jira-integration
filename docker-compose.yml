@@ -2,7 +2,7 @@ version: "3.9"
 services:
   discord-jira:
     build: ./
-    image: sirh/discord-jira:latest
+    image: sirh/c2s:discord-jira
     container_name: discord-jira
     restart: unless-stopped
     ports:

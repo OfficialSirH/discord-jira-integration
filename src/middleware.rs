@@ -54,6 +54,7 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         println!("req: {:?}", req.path());
+        println!("req: {:?}", req.method());
         let fut = self.service.call(req);
         return Box::pin(async move { fut.await });
     }
