@@ -1,8 +1,8 @@
 pub mod constants;
 mod handlers;
+mod middleware;
 pub mod models;
 pub mod utils;
-mod middleware;
 
 extern crate twilight_gateway;
 extern crate twilight_http;
@@ -15,6 +15,7 @@ use actix_web::{
     web::{self, service},
     App, HttpServer,
 };
+use twilight_cache_inmemory::InMemoryCache;
 use twilight_gateway::{ConfigBuilder, EventTypeFlags, Intents, Shard, ShardId};
 use twilight_model::id::{marker::ChannelMarker, Id};
 
@@ -27,7 +28,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let server = HttpServer::new(move || {
         App::new().service(
             web::scope("/discord-jira")
-            .wrap(middleware::LoggingRoute {})
+                .wrap(middleware::LoggingRoute {})
                 // .guard(guard::Header("content-type", "application/json"))
                 // .guard(guard::Post())
                 .service(handlers::jira_issue_update)
@@ -42,8 +43,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         // tracing_subscriber::fmt::init();
 
         let token = dotenv::var("DISCORD_TOKEN").unwrap();
-        let intents = Intents::GUILD_MESSAGES;
-        let event_types = EventTypeFlags::CHANNEL_UPDATE;
+        let intents = Intents::GUILD_MESSAGES | Intents::GUILDS | Intents::MESSAGE_CONTENT;
+        let event_types = EventTypeFlags::THREAD_CREATE
+            | EventTypeFlags::THREAD_UPDATE
+            | EventTypeFlags::THREAD_DELETE;
         println!("before config");
         let config = ConfigBuilder::new(token.clone(), intents)
             .event_types(event_types)
@@ -53,24 +56,35 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         println!("shard created");
         // tracing::info!("created shard");
 
+        let cache = InMemoryCache::builder()
+            .resource_types(twilight_cache_inmemory::ResourceType::CHANNEL)
+            .build();
+
         // create http client and fetch for the channel with the id inside of BUG_REPORT_CHANNEL_ID
         let http = twilight_http::Client::new(token);
         println!("http client created");
-        let channel = http
-            .channel(Id::<ChannelMarker>::new(*constants::BUG_REPORT_CHANNEL_ID))
-            .await.unwrap()
-            .model()
-            .await.unwrap();
-        println!("channel fetched");
+        // let channel = http
+        //     .channel(Id::<ChannelMarker>::new(*constants::BUG_REPORT_CHANNEL_ID))
+        //     .await
+        //     .unwrap()
+        //     .model()
+        //     .await
+        //     .unwrap();
+        // println!("channel fetched");
         loop {
             let event = match shard.next_event().await {
-                Ok(event) => utils::handle_tag_updates(event, &channel)
-                    .await
-                    .map_err(|source| {
-                        // tracing::warn!(?source, "error handling event");
+                Ok(event) => {
+                    utils::handle_tag_updates(&cache, &event)
+                        .await
+                        .map_err(|source| {
+                            // tracing::warn!(?source, "error handling event");
 
-                        source
-                    }),
+                            source
+                        })
+                        .unwrap_or_else(|_| ());
+
+                    cache.update(&event);
+                }
                 Err(source) => {
                     // tracing::warn!(?source, "error receiving event");
                     println!("error receiving event: {:?}", source);
