@@ -25,7 +25,8 @@ pub struct JiraIssue {
 pub struct IssueFields {
     pub project: Project,
     pub summary: String,
-    pub description: JiraDescription,
+    pub description: String,
+    // pub description: JiraDescription,
     pub issuetype: IssueType,
     #[serde(rename = "statusCategory", skip_serializing_if = "Option::is_none")]
     pub status_category: Option<StatusCategory>,

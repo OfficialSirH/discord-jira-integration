@@ -13,8 +13,7 @@ use twilight_model::{
 use crate::{
     constants::{self, GUILD_ID},
     models::{
-        AsStr, IssueFields, IssueType, JiraContent, JiraContentType, JiraDescription, JiraIssue,
-        JiraMark, JiraMarkAttrs, JiraMarkType, JiraText, ParsedMessageURL, Project,
+        IssueFields, IssueType, JiraIssue, ParsedMessageURL, Project,
     },
 };
 
@@ -40,17 +39,19 @@ pub async fn send_update_to_user_report(
     Ok(())
 }
 
-// TODO: remove this once I can confirm a few things with Jira's markdown
+// NOTE: have to use this due to the markdown shit for jira won't work
 /// The format will look like the following:
-/// "[Report Origin](https://discord.com/channels/123456789/987654321/987654321)"
+/// "Report Origin: https://discord.com/channels/123456789/987654321/987654321"
 pub fn parse_message_url_from_issue_update(description: &String) -> ParsedMessageURL {
-    let start_index = description.find("[Report Origin](").unwrap();
+    let start_index = description.find("Report Origin: ").unwrap();
     let end_index = description.find(")").unwrap() - 1;
 
     // get the substring
     let message_url = &description[start_index..end_index];
 
     // split the string by "/"
+    // will look like the following:
+    // ["Report Origin: https:" ,"", "discord.com", "channels", "123456789", "987654321", "987654321"]
     let message_url_parts: Vec<&str> = message_url.split("/").collect();
 
     // get the server ID
@@ -155,52 +156,52 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
         .clone()
         .unwrap_or_else(|| format!("Bug Report from Post ID: {}", channel.id.get()));
 
+    // NOTE: unfortunately, can't get formatting to work right now
     // build out the description
-    let description = JiraDescription {
-        r#type: "doc".to_owned(),
-        version: 1,
-        content: vec![
-            JiraContent {
-                r#type: JiraContentType::Paragraph.as_str().to_owned(),
-                content: vec![JiraText {
-                    r#type: "text".to_owned(),
-                    text: "Report Origin".to_owned(),
-                    marks: Some(vec![JiraMark {
-                        r#type: JiraMarkType::Link.as_str().to_owned(),
-                        attrs: Some(JiraMarkAttrs {
-                            href: format!(
-                                "https://discord.com/channels/{}/{}/{}",
-                                GUILD_ID.to_string(),
-                                message.channel_id.get(),
-                                message.id.get()
-                            ),
-                        }),
-                    }]),
-                }],
-            },
-            JiraContent {
-                r#type: JiraContentType::Paragraph.as_str().to_owned(),
-                content: vec![JiraText {
-                    r#type: "text".to_owned(),
-                    text: message.content.clone(),
-                    marks: None,
-                }],
-            },
-        ],
-    };
+    // let description = JiraDescription {
+    //     r#type: "doc".to_owned(),
+    //     version: 1,
+    //     content: vec![
+    //         JiraContent {
+    //             r#type: JiraContentType::Paragraph.as_str().to_owned(),
+    //             content: vec![JiraText {
+    //                 r#type: "text".to_owned(),
+    //                 text: "Report Origin".to_owned(),
+    //                 marks: Some(vec![JiraMark {
+    //                     r#type: JiraMarkType::Link.as_str().to_owned(),
+    //                     attrs: Some(JiraMarkAttrs {
+    //                         href: format!(
+    //                             "https://discord.com/channels/{}/{}/{}",
+    //                             GUILD_ID.to_string(),
+    //                             message.channel_id.get(),
+    //                             message.id.get()
+    //                         ),
+    //                     }),
+    //                 }]),
+    //             }],
+    //         },
+    //         JiraContent {
+    //             r#type: JiraContentType::Paragraph.as_str().to_owned(),
+    //             content: vec![JiraText {
+    //                 r#type: "text".to_owned(),
+    //                 text: message.content.clone(),
+    //                 marks: None,
+    //             }],
+    //         },
+    //     ],
+    // };
 
     let data = JiraIssue {
         fields: IssueFields {
             project: Project::default(),
             summary: channel_name,
-            description,
-            // description: format!(
-            //     "[Report Origin](https://discord.com/channels/{}/{}/{})\n\n{}",
-            //     GUILD_ID.to_string(),
-            //     message.channel_id.get(),
-            //     message.id.get(),
-            //     message.content
-            // ),
+            description: format!(
+                "Report Origin: https://discord.com/channels/{}/{}/{}\n\n{}",
+                GUILD_ID.to_string(),
+                message.channel_id.get(),
+                message.id.get(),
+                message.content
+            ),
             issuetype: IssueType::default(),
             status_category: None,
         },

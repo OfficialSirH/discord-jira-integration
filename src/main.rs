@@ -10,14 +10,9 @@ extern crate twilight_model;
 
 use std::error::Error;
 
-use actix_web::{
-    guard,
-    web::{self, service},
-    App, HttpServer,
-};
+use actix_web::{web, App, HttpServer};
 use twilight_cache_inmemory::InMemoryCache;
 use twilight_gateway::{ConfigBuilder, EventTypeFlags, Intents, Shard, ShardId};
-use twilight_model::id::{marker::ChannelMarker, Id};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -38,7 +33,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     .bind(server_addr.clone())?
     .run();
 
-    let event_loop_task = tokio::spawn(async move {
+    let _event_loop_task = tokio::spawn(async move {
         // Initialize the tracing subscriber.
         // tracing_subscriber::fmt::init();
 
@@ -47,11 +42,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         let event_types = EventTypeFlags::THREAD_CREATE
             | EventTypeFlags::THREAD_UPDATE
             | EventTypeFlags::THREAD_DELETE;
-        println!("before config");
+
         let config = ConfigBuilder::new(token.clone(), intents)
             .event_types(event_types)
             .build();
         println!("config created");
+
         let mut shard = Shard::with_config(ShardId::ONE, config);
         println!("shard created");
         // tracing::info!("created shard");
@@ -60,19 +56,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .resource_types(twilight_cache_inmemory::ResourceType::CHANNEL)
             .build();
 
-        // create http client and fetch for the channel with the id inside of BUG_REPORT_CHANNEL_ID
-        let http = twilight_http::Client::new(token);
-        println!("http client created");
-        // let channel = http
-        //     .channel(Id::<ChannelMarker>::new(*constants::BUG_REPORT_CHANNEL_ID))
-        //     .await
-        //     .unwrap()
-        //     .model()
-        //     .await
-        //     .unwrap();
-        // println!("channel fetched");
         loop {
-            let event = match shard.next_event().await {
+            let _event = match shard.next_event().await {
                 Ok(event) => {
                     utils::handle_tag_updates(&cache, &event)
                         .await

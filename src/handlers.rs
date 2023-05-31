@@ -1,12 +1,10 @@
-use actix_web::{post, HttpResponse, HttpRequest, FromRequest, dev, web::Bytes, get};
+use actix_web::{get, post, web::Bytes, HttpRequest, HttpResponse};
 
 #[post("")]
-pub async fn jira_issue_update(request: HttpRequest, bytes: Bytes) -> Result<HttpResponse, actix_web::Error> {
-    // turn request into a string
-    // let mut payload = dev::Payload::None;
-    // HttpRequest::from_request(&request, &mut payload).await?;
-    // println!("request: {:?}", payload);
-
+pub async fn jira_issue_update(
+    _request: HttpRequest,
+    bytes: Bytes,
+) -> Result<HttpResponse, actix_web::Error> {
     // turn actix bytes to string then print
     let body = String::from_utf8(bytes.to_vec()).unwrap();
     println!("body: {:?}", body);
@@ -27,7 +25,5 @@ pub async fn jira_issue_update(request: HttpRequest, bytes: Bytes) -> Result<Htt
 
 #[get("")]
 pub async fn testing() -> Result<HttpResponse, actix_web::Error> {
-    println!("no fucking way via post");
-
     Ok(HttpResponse::Ok().body("OK"))
 }
