@@ -42,9 +42,9 @@ pub async fn send_update_to_user_report(
 // NOTE: have to use this due to the markdown shit for jira won't work
 /// The format will look like the following:
 /// "Report Origin: https://discord.com/channels/123456789/987654321/987654321"
-pub fn parse_message_url_from_issue_update(description: &String) -> ParsedMessageURL {
+pub fn parse_message_url_from_issue_update(description: &str) -> ParsedMessageURL {
     let start_index = description.find("Report Origin: ").unwrap();
-    let end_index = description.find(")").unwrap() - 1;
+    let end_index = description.find(')').unwrap() - 1;
 
     // get the substring
     let message_url = &description[start_index..end_index];
@@ -52,7 +52,7 @@ pub fn parse_message_url_from_issue_update(description: &String) -> ParsedMessag
     // split the string by "/"
     // will look like the following:
     // ["Report Origin: https:" ,"", "discord.com", "channels", "123456789", "987654321", "987654321"]
-    let message_url_parts: Vec<&str> = message_url.split("/").collect();
+    let message_url_parts: Vec<&str> = message_url.split('/').collect();
 
     // get the server ID
     let server_id = message_url_parts[4];
@@ -233,9 +233,9 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
         // })
         .send()
         .await
-        .and_then(|response| {
+        .map(|response| {
             println!("response: {:?}", response);
-            Ok(response.text())
+            response.text()
         })
         .map_err(|error| {
             println!("Error creating Jira issue: {:?}", error);

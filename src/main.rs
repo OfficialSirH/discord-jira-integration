@@ -57,16 +57,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .build();
 
         loop {
-            let _event = match shard.next_event().await {
+            match shard.next_event().await {
                 Ok(event) => {
                     utils::handle_tag_updates(&cache, &event)
                         .await
-                        .map_err(|source| {
-                            // tracing::warn!(?source, "error handling event");
-
-                            source
-                        })
-                        .unwrap_or_else(|_| ());
+                        .unwrap_or(());
 
                     cache.update(&event);
                 }
