@@ -75,10 +75,8 @@ pub async fn handle_tag_updates(
     cache: &InMemoryCache,
     event: &Event,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("handle_tag_updates called: {:?}", event);
     // Handle the tag update event
     if let Event::ThreadUpdate(new_channel) = event {
-        println!("channel event received");
         // ensure the channel is a thread within the bug report channel
         if new_channel.parent_id.unwrap() != *constants::BUG_REPORT_CHANNEL_ID {
             return Ok(());
@@ -117,7 +115,6 @@ pub async fn handle_tag_updates(
 
         // check if the new channel has the tag and the old channel does not
         if new_channel_has_tag && !old_channel_has_tag {
-            println!("new channel has tag and old channel does not");
             create_jira_issue(new_channel).await.map_err(|error| {
                 println!("Error creating Jira issue: {:?}", error);
                 error
@@ -138,17 +135,12 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
     // fetch the first message in the thread/post via fetching for a message within the channel using the id of the channel
     // since the starter message and post id are the same
     let http = HttpClient::new(constants::DISCORD_TOKEN.to_string());
-    println!("channel id: {}", channel.id.get());
-    println!(
-        "message id: {}",
-        Id::<MessageMarker>::new(channel.id.get()).get()
-    );
+
     let message = http
         .message(channel.id, Id::<MessageMarker>::new(channel.id.get()))
         .await?
         .model()
         .await?;
-    println!("message: {:?}", message);
 
     // use reqwest to create a new Jira issue
     let channel_name = channel
@@ -206,11 +198,10 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
             status_category: None,
         },
     };
-    println!("data: {:?}", data);
 
     let client = reqwest::Client::new();
-    let response = client
-        .post("https://computerlunch.atlassian.net/rest/api/3/issue")
+    client
+        .post("https://computerlunch.atlassian.net/rest/api/2/issue")
         .basic_auth(
             dotenv::var("JIRA_USERNAME")?,
             Some(dotenv::var("JIRA_TOKEN")?),
@@ -232,18 +223,7 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
         //     },
         // })
         .send()
-        .await
-        .map(|response| {
-            println!("response: {:?}", response);
-            response.text()
-        })
-        .map_err(|error| {
-            println!("Error creating Jira issue: {:?}", error);
-        })
-        .unwrap()
-        .await?;
-
-    println!("response: {:?}", response);
+        .await?.error_for_status()?;
 
     Ok(())
 }

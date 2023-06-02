@@ -17,7 +17,6 @@ use twilight_gateway::{ConfigBuilder, EventTypeFlags, Intents, Shard, ShardId};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     dotenv::dotenv().ok();
-    println!("env vars: {:?}", dotenv::vars());
     let server_addr = dotenv::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
 
     let server = HttpServer::new(move || {
@@ -46,11 +45,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         let config = ConfigBuilder::new(token.clone(), intents)
             .event_types(event_types)
             .build();
-        println!("config created");
 
         let mut shard = Shard::with_config(ShardId::ONE, config);
-        println!("shard created");
-        // tracing::info!("created shard");
 
         let cache = InMemoryCache::builder()
             .resource_types(twilight_cache_inmemory::ResourceType::CHANNEL)
@@ -66,7 +62,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     cache.update(&event);
                 }
                 Err(source) => {
-                    // tracing::warn!(?source, "error receiving event");
                     println!("error receiving event: {:?}", source);
                     if source.is_fatal() {
                         break;
@@ -75,8 +70,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     continue;
                 }
             };
-
-            // tracing::debug!(?event, "event");
         }
     });
 
