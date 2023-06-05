@@ -55,9 +55,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         loop {
             match shard.next_event().await {
                 Ok(event) => {
-                    utils::handle_tag_updates(&cache, &event)
-                        .await
-                        .unwrap_or(());
+                    let handled_data = utils::handle_tag_updates(&cache, &event).await;
+
+                    if handled_data.is_err() {
+                        println!("error handling tag updates: {:?}", handled_data);
+                    }
 
                     cache.update(&event);
                 }

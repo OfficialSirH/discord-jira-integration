@@ -3,7 +3,7 @@ use twilight_cache_inmemory::InMemoryCache;
 use twilight_gateway::Event;
 use twilight_http::Client as HttpClient;
 use twilight_model::{
-    channel::Channel,
+    channel::{Channel, Attachment, Message},
     id::{
         marker::{ChannelMarker, GuildMarker, MessageMarker},
         Id,
@@ -115,33 +115,35 @@ pub async fn handle_tag_updates(
 
         // check if the new channel has the tag and the old channel does not
         if new_channel_has_tag && !old_channel_has_tag {
-            let jira_issue_creation = create_jira_issue(new_channel).await.map_err(|error| {
+            // fetch the first message in the thread/post via fetching for a message within the channel using the id of the channel
+            // since the starter message and post id are the same
+            let http = HttpClient::new(constants::DISCORD_TOKEN.to_string());
+
+            let message = http
+                .message(new_channel.id, Id::<MessageMarker>::new(new_channel.id.get()))
+                .await?
+                .model()
+                .await?;
+            
+            let jira_issue_creation = create_jira_issue(&message, new_channel).await.map_err(|error| {
                 println!("Error creating Jira issue: {:?}", error);
                 error
             })?;
 
+            attach_images_to_jira_issue(&message, &jira_issue_creation.key).await?;
+
             // send a message to the user report channel stating that the report is now synced to jira
-            let message = 
+            let automated_reply = 
                 format!("This has been added to our bug tracking system as the issue {}.  As we resolve that issue, updates will be posted back here.", jira_issue_creation.key);
 
-            send_update_to_user_report(new_channel.id.get(), message.as_str()).await?;
+            send_update_to_user_report(new_channel.id.get(), automated_reply.as_str()).await?;
         }
     }
 
     Ok(())
 }
 
-pub async fn create_jira_issue(channel: &Channel) -> Result<CreateJiraIssueResponse, Box<dyn std::error::Error>> {
-    // fetch the first message in the thread/post via fetching for a message within the channel using the id of the channel
-    // since the starter message and post id are the same
-    let http = HttpClient::new(constants::DISCORD_TOKEN.to_string());
-
-    let message = http
-        .message(channel.id, Id::<MessageMarker>::new(channel.id.get()))
-        .await?
-        .model()
-        .await?;
-
+pub async fn create_jira_issue(message: &Message, channel: &Channel) -> Result<CreateJiraIssueResponse, Box<dyn std::error::Error>> {
     // use reqwest to create a new Jira issue
     let channel_name = channel
         .name
@@ -183,12 +185,6 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<CreateJiraIssueRespo
     //     ],
     // };
 
-    // format the message.content by appending all of the attachment urls at the end
-    let mut description = message.content.clone() + "\n\nAttachments:";
-    for attachment in message.attachments {
-        description.push_str(format!("\n{}", attachment.url).as_str());
-    }
-
     let data = JiraIssue {
         fields: IssueFields {
             project: Project::default(),
@@ -198,7 +194,8 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<CreateJiraIssueRespo
                 GUILD_ID.to_string(),
                 message.channel_id.get(),
                 message.id.get(),
-                description
+                message.content
+                // description
             ),
             issuetype: IssueType::default(),
             status_category: None,
@@ -233,4 +230,65 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<CreateJiraIssueRespo
         .await?.error_for_status()?.json::<CreateJiraIssueResponse>().await?;
 
     Ok(response)
+}
+
+pub async fn attach_images_to_jira_issue(
+    message: &Message,
+    jira_issue_key: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // get the attachments from the user's message and then attach it to the jira issue through the attachments route in the jira api
+    for attachment in &message.attachments {
+        let client = reqwest::Client::new();
+        let attachment = resolve_attachment_data_to_part(attachment).await?;
+
+        client
+            .post(format!(
+                "https://computerlunch.atlassian.net/rest/api/2/issue/{}/attachments",
+                jira_issue_key
+            ))
+            .basic_auth(
+                dotenv::var("JIRA_USERNAME")?,
+                Some(dotenv::var("JIRA_TOKEN")?),
+            ).multipart(
+                reqwest::multipart::Form::new().part(
+                    "file",
+                    attachment,
+                ),
+            ).header("X-Atlassian-Token", "no-check").send()
+            .await?.error_for_status()?;
+    }
+
+    println!("successfully attached all images for {}", jira_issue_key);
+
+    Ok(())
+}
+
+pub async fn download_discord_attachment(
+    attachment: &Attachment,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(attachment.url.clone())
+        .send()
+        .await?.error_for_status()?;
+
+    Ok(response.bytes().await?.to_vec())
+}
+
+pub async fn resolve_attachment_data_to_part(
+    attachment: &Attachment,
+) -> Result<reqwest::multipart::Part, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(attachment.url.clone())
+        .send()
+        .await?.error_for_status()?;
+
+    let part = reqwest::multipart::Part::bytes(response.bytes().await?.to_vec())
+        .file_name(attachment.filename.clone())
+        .mime_str(attachment.content_type.clone().unwrap_or_else(|| "image/png".to_owned()).as_str())?;
+
+    Ok(part)
 }
