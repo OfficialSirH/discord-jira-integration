@@ -149,3 +149,11 @@ impl AsStr for JiraMarkType {
         }
     }
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateJiraIssueResponse {
+    pub key: String,
+    pub id: String,
+    #[serde(rename = "self")]
+    pub url: String,
+}

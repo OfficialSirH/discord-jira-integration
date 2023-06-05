@@ -13,7 +13,7 @@ use twilight_model::{
 use crate::{
     constants::{self, GUILD_ID},
     models::{
-        IssueFields, IssueType, JiraIssue, ParsedMessageURL, Project,
+        IssueFields, IssueType, JiraIssue, ParsedMessageURL, Project, CreateJiraIssueResponse,
     },
 };
 
@@ -115,23 +115,23 @@ pub async fn handle_tag_updates(
 
         // check if the new channel has the tag and the old channel does not
         if new_channel_has_tag && !old_channel_has_tag {
-            create_jira_issue(new_channel).await.map_err(|error| {
+            let jira_issue_creation = create_jira_issue(new_channel).await.map_err(|error| {
                 println!("Error creating Jira issue: {:?}", error);
                 error
             })?;
 
             // send a message to the user report channel stating that the report is now synced to jira
             let message = 
-                "This report is now synced to our Internals, we'll send updates on the state of this report as progress is done.";
+                format!("This has been added to our bug tracking system as the issue {}.  As we resolve that issue, updates will be posted back here.", jira_issue_creation.key);
 
-            send_update_to_user_report(new_channel.id.get(), message).await?;
+            send_update_to_user_report(new_channel.id.get(), message.as_str()).await?;
         }
     }
 
     Ok(())
 }
 
-pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn create_jira_issue(channel: &Channel) -> Result<CreateJiraIssueResponse, Box<dyn std::error::Error>> {
     // fetch the first message in the thread/post via fetching for a message within the channel using the id of the channel
     // since the starter message and post id are the same
     let http = HttpClient::new(constants::DISCORD_TOKEN.to_string());
@@ -183,6 +183,12 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
     //     ],
     // };
 
+    // format the message.content by appending all of the attachment urls at the end
+    let mut description = message.content.clone() + "\n\nAttachments:";
+    for attachment in message.attachments {
+        description.push_str(format!("\n{}", attachment.url).as_str());
+    }
+
     let data = JiraIssue {
         fields: IssueFields {
             project: Project::default(),
@@ -192,7 +198,7 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
                 GUILD_ID.to_string(),
                 message.channel_id.get(),
                 message.id.get(),
-                message.content
+                description
             ),
             issuetype: IssueType::default(),
             status_category: None,
@@ -200,7 +206,8 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
     };
 
     let client = reqwest::Client::new();
-    client
+
+    let response = client
         .post("https://computerlunch.atlassian.net/rest/api/2/issue")
         .basic_auth(
             dotenv::var("JIRA_USERNAME")?,
@@ -223,7 +230,7 @@ pub async fn create_jira_issue(channel: &Channel) -> Result<(), Box<dyn std::err
         //     },
         // })
         .send()
-        .await?.error_for_status()?;
+        .await?.error_for_status()?.json::<CreateJiraIssueResponse>().await?;
 
-    Ok(())
+    Ok(response)
 }
