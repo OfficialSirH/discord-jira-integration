@@ -93,6 +93,10 @@ pub async fn handle_tag_updates(
             .channel(new_channel.id)
             .and_then(|c| c.applied_tags.clone());
 
+        if old_channel_tags.is_none() {
+            return Ok(());
+        }
+
         // get the tag id from the env var
         let tag_id = dotenv::var("JIRA_SYNC_TAG_ID")
             .unwrap()

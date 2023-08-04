@@ -6,14 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11.15", features = ["json", "multipart"] }
-twilight-http = "0.15.1"
-twilight-model = "0.15.1"
-twilight-gateway = "0.15.1"
-twilight-cache-inmemory = "0.15.1"
-tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
+reqwest = { version = "0.11", features = ["json", "multipart"] }
+twilight-http = "0.15"
+twilight-model = "0.15"
+twilight-gateway = "0.15"
+twilight-cache-inmemory = "0.15"
+tokio = { version = "1.29", features = ["macros", "rt-multi-thread"] }
 dotenv = "0.15"
 serde = "1"
-serde_json = "1.0.94"
-lazy_static = "1.4.0"
-actix-web = "4.3.1"
+serde_json = "1"
+lazy_static = "1.4"
+actix-web = "4.3"
