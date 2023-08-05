@@ -12,7 +12,8 @@ use std::error::Error;
 
 use actix_web::{web, App, HttpServer};
 use twilight_cache_inmemory::InMemoryCache;
-use twilight_gateway::{ConfigBuilder, EventTypeFlags, Intents, Shard, ShardId};
+use twilight_gateway::{ConfigBuilder, Event, EventTypeFlags, Intents, Shard, ShardId};
+use twilight_model::gateway::payload::incoming::ThreadCreate;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -55,13 +56,31 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         loop {
             match shard.next_event().await {
                 Ok(event) => {
-                    let handled_data = utils::handle_tag_updates(&cache, &event).await;
+                    match event {
+                        Event::ThreadCreate(_)
+                        | Event::ThreadUpdate(_)
+                        | Event::ThreadDelete(_) => {
+                            let handled_data = utils::handle_tag_updates(&cache, &event).await;
 
-                    if handled_data.is_err() {
-                        println!("error handling tag updates: {:?}", handled_data);
+                            if handled_data.is_err() {
+                                println!("error handling tag updates: {:?}", handled_data);
+                            }
+
+                            cache.update(&event);
+                        }
+                        Event::GuildCreate(ref guild) => {
+                            if guild.id != *constants::GUILD_ID {
+                                continue;
+                            }
+                            // cache all threads
+                            for thread in &guild.threads {
+                                cache.update(&Event::ThreadCreate(Box::new(ThreadCreate(
+                                    thread.clone(),
+                                ))));
+                            }
+                        }
+                        _ => {}
                     }
-
-                    cache.update(&event);
                 }
                 Err(source) => {
                     println!("error receiving event: {:?}", source);

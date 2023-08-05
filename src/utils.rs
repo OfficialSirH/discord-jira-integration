@@ -82,6 +82,13 @@ pub async fn handle_tag_updates(
             return Ok(());
         }
 
+        let old_channel = cache
+            .channel(new_channel.id);
+
+        if old_channel.is_none() {
+            return Ok(());
+        }
+
         // Check if the message contains a tag update
         // Implement your logic here to extract and process the tag update information
 
@@ -89,13 +96,7 @@ pub async fn handle_tag_updates(
         // if the new_channel has the applied tag that matches the id from JIRA_SYNC_TAG_ID and the old channel does not,
         // then send the report as a new jira issue and send a message to the user report channel stating that the report is now synced to jira
         let new_channel_tags = new_channel.applied_tags.as_ref();
-        let old_channel_tags = cache
-            .channel(new_channel.id)
-            .and_then(|c| c.applied_tags.clone());
-
-        if old_channel_tags.is_none() {
-            return Ok(());
-        }
+        let old_channel_tags = old_channel.and_then(|c| c.applied_tags.clone());
 
         // get the tag id from the env var
         let tag_id = dotenv::var("JIRA_SYNC_TAG_ID")
