@@ -11,6 +11,18 @@ lazy_static! {
         .unwrap()
         .parse::<u64>()
         .unwrap();
+    pub static ref BETA_BUG_REPORT_CHANNEL_ID: u64 = dotenv::var("BETA_BUG_REPORT_CHANNEL_ID")
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
+    pub static ref JIRA_SYNC_TAG: u64 = dotenv::var("JIRA_SYNC_TAG")
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
+    pub static ref BETA_JIRA_SYNC_TAG: u64 = dotenv::var("BETA_JIRA_SYNC_TAG")
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
 }
 
 #[derive(Debug, Deserialize, Serialize)]

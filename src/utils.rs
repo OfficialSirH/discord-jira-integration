@@ -78,7 +78,7 @@ pub async fn handle_tag_updates(
     // Handle the tag update event
     if let Event::ThreadUpdate(new_channel) = event {
         // ensure the channel is a thread within the bug report channel
-        if new_channel.parent_id.unwrap() != *constants::BUG_REPORT_CHANNEL_ID {
+        if  ![*constants::BUG_REPORT_CHANNEL_ID, *constants::BETA_BUG_REPORT_CHANNEL_ID].contains(&new_channel.parent_id.unwrap().get()) {
             return Ok(());
         }
 
@@ -98,25 +98,22 @@ pub async fn handle_tag_updates(
         let new_channel_tags = new_channel.applied_tags.as_ref();
         let old_channel_tags = old_channel.and_then(|c| c.applied_tags.clone());
 
-        // get the tag id from the env var
-        let tag_id = dotenv::var("JIRA_SYNC_TAG_ID")
-            .unwrap()
-            .parse::<u64>()
-            .unwrap();
+        // get the tag id constants
+        let tag_ids = vec![*constants::JIRA_SYNC_TAG, *constants::BETA_JIRA_SYNC_TAG];
 
         // check if the new channel has the tag
         let new_channel_has_tag = new_channel_tags.is_some()
             && new_channel_tags
                 .unwrap()
                 .iter()
-                .any(|tag| tag.get() == tag_id);
+                .any(|tag| tag_ids.contains(&tag.get()));
 
         // check if the old channel has the tag
         let old_channel_has_tag = old_channel_tags.is_some()
             && old_channel_tags
                 .unwrap()
                 .iter()
-                .any(|tag| tag.get() == tag_id);
+                .any(|tag| tag_ids.contains(&tag.get()));
 
         // check if the new channel has the tag and the old channel does not
         if new_channel_has_tag && !old_channel_has_tag {
