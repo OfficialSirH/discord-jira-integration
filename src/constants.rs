@@ -15,11 +15,11 @@ lazy_static! {
         .unwrap()
         .parse::<u64>()
         .unwrap();
-    pub static ref JIRA_SYNC_TAG: u64 = dotenv::var("JIRA_SYNC_TAG")
+    pub static ref JIRA_SYNC_TAG: u64 = dotenv::var("JIRA_SYNC_TAG_ID")
         .unwrap()
         .parse::<u64>()
         .unwrap();
-    pub static ref BETA_JIRA_SYNC_TAG: u64 = dotenv::var("BETA_JIRA_SYNC_TAG")
+    pub static ref BETA_JIRA_SYNC_TAG: u64 = dotenv::var("BETA_JIRA_SYNC_TAG_ID")
         .unwrap()
         .parse::<u64>()
         .unwrap();
